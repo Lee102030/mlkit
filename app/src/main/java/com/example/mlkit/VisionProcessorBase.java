@@ -65,7 +65,6 @@ public abstract class VisionProcessorBase<T> implements VisionImageProcessor {
   private final ActivityManager activityManager;
   private final Timer fpsTimer = new Timer();
   private final ScopedExecutor executor;
-  private final TemperatureMonitor temperatureMonitor;
 
   // Whether this processor is already shut down
   private boolean isShutdown;
@@ -109,44 +108,6 @@ public abstract class VisionProcessorBase<T> implements VisionImageProcessor {
         },
         /* delay= */ 0,
         /* period= */ 1000);
-    temperatureMonitor = new TemperatureMonitor(context);
-  }
-
-  // -----------------Code for processing single still image----------------------------------------
-  @Override
-  public void processBitmap(Bitmap bitmap, final GraphicOverlay graphicOverlay) {
-    long frameStartMs = SystemClock.elapsedRealtime();
-
-    if (isMlImageEnabled(graphicOverlay.getContext())) {
-      MlImage mlImage = new BitmapMlImageBuilder(bitmap).build();
-      requestDetectInImage(
-          mlImage,
-          graphicOverlay,
-          /* originalCameraImage= */ null,
-          /* shouldShowFps= */ false,
-          frameStartMs);
-      mlImage.close();
-
-      return;
-    }
-
-    requestDetectInImage(
-        InputImage.fromBitmap(bitmap, 0),
-        graphicOverlay,
-        /* originalCameraImage= */ null,
-        /* shouldShowFps= */ false,
-        frameStartMs);
-  }
-
-  // -----------------Code for processing live preview frame from Camera1 API-----------------------
-  @Override
-  public synchronized void processByteBuffer(
-      ByteBuffer data, final FrameMetadata frameMetadata, final GraphicOverlay graphicOverlay) {
-    latestImage = data;
-    latestImageMetaData = frameMetadata;
-    if (processingImage == null && processingMetaData == null) {
-      processLatestImage(graphicOverlay);
-    }
   }
 
   private synchronized void processLatestImage(final GraphicOverlay graphicOverlay) {
@@ -321,7 +282,6 @@ public abstract class VisionProcessorBase<T> implements VisionImageProcessor {
                 activityManager.getMemoryInfo(mi);
                 long availableMegs = mi.availMem / 0x100000L;
                 Log.d(TAG, "Memory available in system: " + availableMegs + " MB");
-                temperatureMonitor.logTemperature();
               }
 
               graphicOverlay.clear();
@@ -329,14 +289,7 @@ public abstract class VisionProcessorBase<T> implements VisionImageProcessor {
                 graphicOverlay.add(new CameraImageGraphic(graphicOverlay, originalCameraImage));
               }
               VisionProcessorBase.this.onSuccess(results, graphicOverlay);
-              if (!PreferenceUtils.shouldHideDetectionInfo(graphicOverlay.getContext())) {
-                graphicOverlay.add(
-                    new InferenceInfoGraphic(
-                        graphicOverlay,
-                        currentFrameLatencyMs,
-                        currentDetectorLatencyMs,
-                        shouldShowFps ? framesPerSecond : null));
-              }
+
               graphicOverlay.postInvalidate();
             })
         .addOnFailureListener(
@@ -362,7 +315,6 @@ public abstract class VisionProcessorBase<T> implements VisionImageProcessor {
     isShutdown = true;
     resetLatencyStats();
     fpsTimer.cancel();
-    temperatureMonitor.stop();
   }
 
   private void resetLatencyStats() {

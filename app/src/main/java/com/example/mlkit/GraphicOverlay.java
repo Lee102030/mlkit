@@ -27,25 +27,7 @@ import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A view which renders a series of custom graphics to be overlayed on top of an associated preview
- * (i.e., the camera preview). The creator can add graphics objects, update the objects, and remove
- * them, triggering the appropriate drawing and invalidation within the view.
- *
- * <p>Supports scaling and mirroring of the graphics relative the camera's preview properties. The
- * idea is that detection items are expressed in terms of an image size, but need to be scaled up
- * to the full view size, and also mirrored in the case of the front-facing camera.
- *
- * <p>Associated {@link Graphic} items should use the following methods to convert to view
- * coordinates for the graphics that are drawn:
- *
- * <ol>
- *   <li>{@link Graphic#scale(float)} adjusts the size of the supplied value from the image scale
- *       to the view scale.
- *   <li>{@link Graphic#translateX(float)} and {@link Graphic#translateY(float)} adjust the
- *       coordinate from the image's coordinate system to the view coordinate system.
- * </ol>
- */
+
 public class GraphicOverlay extends View {
   private final Object lock = new Object();
   private final List<Graphic> graphics = new ArrayList<>();
@@ -78,52 +60,8 @@ public class GraphicOverlay extends View {
       this.overlay = overlay;
     }
 
-    /**
-     * Draw the graphic on the supplied canvas. Drawing should use the following methods to convert
-     * to view coordinates for the graphics that are drawn:
-     *
-     * <ol>
-     *   <li>{@link Graphic#scale(float)} adjusts the size of the supplied value from the image
-     *       scale to the view scale.
-     *   <li>{@link Graphic#translateX(float)} and {@link Graphic#translateY(float)} adjust the
-     *       coordinate from the image's coordinate system to the view coordinate system.
-     * </ol>
-     *
-     * @param canvas drawing canvas
-     */
+
     public abstract void draw(Canvas canvas);
-
-    /** Adjusts the supplied value from the image scale to the view scale. */
-    public float scale(float imagePixel) {
-      return imagePixel * overlay.scaleFactor;
-    }
-
-    /** Returns the application context of the app. */
-    public Context getApplicationContext() {
-      return overlay.getContext().getApplicationContext();
-    }
-
-    public boolean isImageFlipped() {
-      return overlay.isImageFlipped;
-    }
-
-    /**
-     * Adjusts the x coordinate from the image's coordinate system to the view coordinate system.
-     */
-    public float translateX(float x) {
-      if (overlay.isImageFlipped) {
-        return overlay.getWidth() - (scale(x) - overlay.postScaleWidthOffset);
-      } else {
-        return scale(x) - overlay.postScaleWidthOffset;
-      }
-    }
-
-    /**
-     * Adjusts the y coordinate from the image's coordinate system to the view coordinate system.
-     */
-    public float translateY(float y) {
-      return scale(y) - overlay.postScaleHeightOffset;
-    }
 
     /**
      * Returns a {@link Matrix} for transforming from image coordinates to overlay view coordinates.
@@ -132,9 +70,6 @@ public class GraphicOverlay extends View {
       return overlay.transformationMatrix;
     }
 
-    public void postInvalidate() {
-      overlay.postInvalidate();
-    }
   }
 
   public GraphicOverlay(Context context, AttributeSet attrs) {
@@ -159,13 +94,7 @@ public class GraphicOverlay extends View {
     }
   }
 
-  /** Removes a graphic from the overlay. */
-  public void remove(Graphic graphic) {
-    synchronized (lock) {
-      graphics.remove(graphic);
-    }
-    postInvalidate();
-  }
+
 
   /**
    * Sets the source information of the image being processed by detectors, including size and
@@ -186,14 +115,6 @@ public class GraphicOverlay extends View {
       needUpdateTransformation = true;
     }
     postInvalidate();
-  }
-
-  public int getImageWidth() {
-    return imageWidth;
-  }
-
-  public int getImageHeight() {
-    return imageHeight;
   }
 
   private void updateTransformationIfNeeded() {

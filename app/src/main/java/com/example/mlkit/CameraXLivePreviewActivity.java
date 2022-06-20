@@ -20,21 +20,12 @@ import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.Size;
-import android.view.View;
-import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemSelectedListener;
-import android.widget.ArrayAdapter;
-import android.widget.CompoundButton;
-import android.widget.ImageView;
-import android.widget.Spinner;
 import android.widget.Toast;
-import android.widget.ToggleButton;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.camera.core.CameraInfoUnavailableException;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.Preview;
@@ -47,17 +38,10 @@ import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory;
 import com.google.android.gms.common.annotation.KeepName;
 import com.google.mlkit.common.MlKitException;
 
-
-
-
-import java.util.ArrayList;
-import java.util.List;
-
 /** Live preview demo app for ML Kit APIs using CameraX. */
 @KeepName
 @RequiresApi(VERSION_CODES.LOLLIPOP)
-public final class CameraXLivePreviewActivity extends AppCompatActivity
-    implements OnItemSelectedListener, CompoundButton.OnCheckedChangeListener {
+public final class CameraXLivePreviewActivity extends AppCompatActivity {
   private static final String TAG = "CameraXLivePreview";
 
 
@@ -98,22 +82,6 @@ public final class CameraXLivePreviewActivity extends AppCompatActivity
       Log.d(TAG, "graphicOverlay is null");
     }
 
-    Spinner spinner = findViewById(R.id.spinner);
-    List<String> options = new ArrayList<>();
-    options.add(BARCODE_SCANNING);
-
-
-    // Creating adapter for spinner
-    ArrayAdapter<String> dataAdapter = new ArrayAdapter<>(this, R.layout.spinner_style, options);
-    // Drop down layout style - list view with radio button
-    dataAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-    // attaching data adapter to spinner
-    spinner.setAdapter(dataAdapter);
-    spinner.setOnItemSelectedListener(this);
-
-    ToggleButton facingSwitch = findViewById(R.id.facing_switch);
-    facingSwitch.setOnCheckedChangeListener(this);
-
     new ViewModelProvider(this, AndroidViewModelFactory.getInstance(getApplication()))
         .get(CameraXViewModel.class)
         .getProcessCameraProvider()
@@ -123,65 +91,12 @@ public final class CameraXLivePreviewActivity extends AppCompatActivity
               cameraProvider = provider;
               bindAllCameraUseCases();
             });
-
-    ImageView settingsButton = findViewById(R.id.settings_button);
-    settingsButton.setOnClickListener(
-        v -> {
-          /*Intent intent = new Intent(getApplicationContext(), SettingsActivity.class);
-          intent.putExtra(
-              SettingsActivity.EXTRA_LAUNCH_SOURCE,
-              SettingsActivity.LaunchSource.CAMERAX_LIVE_PREVIEW);
-          startActivity(intent);*/
-        });
   }
 
   @Override
   protected void onSaveInstanceState(@NonNull Bundle bundle) {
     super.onSaveInstanceState(bundle);
     bundle.putString(STATE_SELECTED_MODEL, selectedModel);
-  }
-
-  @Override
-  public synchronized void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
-    // An item was selected. You can retrieve the selected item using
-    // parent.getItemAtPosition(pos)
-    selectedModel = parent.getItemAtPosition(pos).toString();
-    Log.d(TAG, "Selected model: " + selectedModel);
-    bindAnalysisUseCase();
-  }
-
-  @Override
-  public void onNothingSelected(AdapterView<?> parent) {
-    // Do nothing.
-  }
-
-  @Override
-  public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-    if (cameraProvider == null) {
-      return;
-    }
-    int newLensFacing =
-        lensFacing == CameraSelector.LENS_FACING_FRONT
-            ? CameraSelector.LENS_FACING_BACK
-            : CameraSelector.LENS_FACING_FRONT;
-    CameraSelector newCameraSelector =
-        new CameraSelector.Builder().requireLensFacing(newLensFacing).build();
-    try {
-      if (cameraProvider.hasCamera(newCameraSelector)) {
-        Log.d(TAG, "Set facing to " + newLensFacing);
-        lensFacing = newLensFacing;
-        cameraSelector = newCameraSelector;
-        bindAllCameraUseCases();
-        return;
-      }
-    } catch (CameraInfoUnavailableException e) {
-      // Falls through
-    }
-    Toast.makeText(
-            getApplicationContext(),
-            "This device does not have lens with facing: " + newLensFacing,
-            Toast.LENGTH_SHORT)
-        .show();
   }
 
   @Override
@@ -247,26 +162,7 @@ public final class CameraXLivePreviewActivity extends AppCompatActivity
       imageProcessor.stop();
     }
 
-    try {
-      switch (selectedModel) {
-
-        case BARCODE_SCANNING:
-          Log.i(TAG, "Using Barcode Detector Processor");
-          imageProcessor = new BarcodeScannerProcessor(this);
-          break;
-
-        default:
-          throw new IllegalStateException("Invalid model name");
-      }
-    } catch (Exception e) {
-      Log.e(TAG, "Can not create image processor: " + selectedModel, e);
-      Toast.makeText(
-              getApplicationContext(),
-              "Can not create image processor: " + e.getLocalizedMessage(),
-              Toast.LENGTH_LONG)
-          .show();
-      return;
-    }
+    imageProcessor = new BarcodeScannerProcessor(this);
 
     ImageAnalysis.Builder builder = new ImageAnalysis.Builder();
     Size targetResolution = PreferenceUtils.getCameraXTargetResolution(this, lensFacing);
